@@ -1,9 +1,10 @@
 from django.shortcuts import render
+from django.db.models import Avg,Count,Max
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import Subject
+from .models import Subject,Course
 from rest_framework.status import HTTP_404_NOT_FOUND,HTTP_200_OK,HTTP_201_CREATED,HTTP_400_BAD_REQUEST
-from .serializers import SubjectModelSerializers
+from .serializers import SubjectModelSerializers,CourseModelSerializers
 from rest_framework.generics import ListAPIView,ListCreateAPIView,RetrieveUpdateDestroyAPIView
 # Create your views here.
 
@@ -13,7 +14,9 @@ class SubjectListCreateAPIView(ListCreateAPIView):
     serializer_class = SubjectModelSerializers
     
     def get_queryset(self):
-        queryset = Subject.objects.all().order_by('-id')
+        queryset = Subject.objects.all()
+        queryset = queryset.annotate(course_count=Count('courses'))
+        queryset = queryset.order_by('course_count')
         return queryset
     
     
@@ -22,7 +25,7 @@ class SubjectDetailAPIView(RetrieveUpdateDestroyAPIView):
     serializer_class = SubjectModelSerializers
     # lookup_field = 'subject_id'
     lookup_url_kwarg = 'subject_id'
-    
+
 
 # class SubjectList(APIView):
 #     def get(self,request):
@@ -62,46 +65,7 @@ class SubjectDetailAPIView(RetrieveUpdateDestroyAPIView):
         
         
         
-        
-'''
-
-
-
-[
-    {
-        "id": 1,
-        "title": "Web dasturlash",
-        "course_count":4
-        "image": "/media/subjects/web.jpeg",
-        "courses":[
-            {},
-            {},
-            {}
-        ]
-    },
-    {
-        "id": 2,
-        "title": "SMM Pro",
-        "image": "/media/subjects/smm.jpeg"
-    },
-    {
-        "id": 3,
-        "title": "test",
-        "image": null
-    },
-    {
-        "id": 4,
-        "title": "test2",
-        "image": null
-    },
-    {
-        "id": 5,
-        "title": "sherali",
-        "image": null
-    }
-]
-
-
-
-
-'''
+class CourseListAPIView(ListAPIView):
+    queryset = Course.objects.all()
+    serializer_class = CourseModelSerializers
+    

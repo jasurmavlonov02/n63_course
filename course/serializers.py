@@ -5,6 +5,15 @@ from .models import Subject,Course
 
 
 class CourseModelSerializers(serializers.ModelSerializer):
+    subject_title = serializers.StringRelatedField(source='subject.title')
+    subject_slug = serializers.SlugRelatedField(
+        source = 'subject',
+        slug_field = 'slug',
+        read_only = True
+    )  
+    username = serializers.CharField(source = 'owner.username')
+    
+    
     class Meta:
         model = Course
         fields = '__all__'
@@ -21,12 +30,12 @@ class SubjectModelSerializers(serializers.ModelSerializer):
     #         image_url = instance.image.url
     #         return request.build_absolute_uri(image_url)
     #     return None
-    course_count = serializers.SerializerMethodField()
+    course_count = serializers.IntegerField()
     
-    def get_course_count(self,instance):
-        return instance.courses.count()
+    # def get_course_count(self,instance):
+    #     return instance.courses.count()
     
     class Meta:
         model = Subject
-        # fields = '__all__'
-        exclude = ('slug',)
+        fields = '__all__'
+        
