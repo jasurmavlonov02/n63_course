@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from .models import Subject,Course
-
+from django.contrib.auth.models import User
+from datetime import datetime
+from rest_framework.pagination import LimitOffsetPagination
 
 
 
@@ -20,17 +22,7 @@ class CourseModelSerializers(serializers.ModelSerializer):
 
 
 
-class SubjectModelSerializers(serializers.ModelSerializer):
-    courses = CourseModelSerializers(many=True,read_only = True) # Nested serializer
-    # full_image_url = serializers.SerializerMethodField(method_name='all_images')   
-     
-    # def all_images(self,instance):
-    #     request = self.context.get('request')
-    #     if instance.image:
-    #         image_url = instance.image.url
-    #         return request.build_absolute_uri(image_url)
-    #     return None
-    course_count = serializers.IntegerField()
+class SubjectSerializers(serializers.ModelSerializer):
     
     # def get_course_count(self,instance):
     #     return instance.courses.count()
@@ -39,3 +31,41 @@ class SubjectModelSerializers(serializers.ModelSerializer):
         model = Subject
         fields = '__all__'
         
+   
+    
+
+class UserModelSerializers(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+
+        
+    
+    def validate_password(self,value):
+
+        if len(value) < 6:
+            raise serializers.ValidationError("Parol kamida 6 ta belgidan iborat bo'lishi kerak.")
+        
+        return value
+
+        
+        
+
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        return token
+    
+    def validate(self, attrs):
+        data = super().validate(attrs)
+
+        # Bu qism - token javobining tashqarisiga qo‘shiladigan maydonlar
+        data['username'] = self.user.username
+        data['user_id'] = self.user.id
+        data['email'] = self.user.email
+        data['created_at'] = datetime.now()
+        return data
