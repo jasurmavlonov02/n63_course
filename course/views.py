@@ -17,7 +17,9 @@ from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.db.models import Prefetch
-
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from django.core.cache import cache
 
 
 
@@ -36,61 +38,61 @@ class SubjectListCreateAPIView(ListAPIView):
         # queryset = queryset.prefetch_related('courses')
         return queryset
     
+    def list(self,request,*args,**kwargs):
+        cache_key = 'subject_list'
+        cached_data = cache.get(cache_key)
+
+        
+        if cached_data:
+            return Response(cached_data)
+    
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        data = serializer.data
+        cache.set(cache_key, data, timeout=60)
+        return Response(data)
     
 class SubjectDetailAPIView(RetrieveUpdateDestroyAPIView):
     queryset = Subject.objects.all()
     serializer_class = SubjectSerializers
     # lookup_field = 'subject_id'
     lookup_url_kwarg = 'subject_id'
+    
+    
+    def retrieve(self, request, *args, **kwargs):
+        # Masalan, cache key ni pk bo‘yicha qilamiz
+        subject_id = kwargs.get('subject_id')
+        cache_key = f'subject_{subject_id}'
+
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data)
+
+        # Obyektni olish
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+
+        # Cache ga yozish
+        cache.set(cache_key, data, timeout=300)
+
+        return Response(data)
 
     
 
 class SubjectCoursesListAPIView(ListAPIView):
     serializer_class = CourseModelSerializers
     pagination_class = pagination.LimitOffsetPagination
+    
+    @method_decorator(cache_page(60))
+    def get(self, *args, **kwargs):
+        return super().get(*args, **kwargs)
 
     def get_queryset(self):
         subject_id = self.kwargs['subject_id']
         queryset = Course.objects.filter(subject_id=subject_id).order_by('id')
         queryset = queryset.select_related('owner','subject')
         return queryset
-    
-    
-# class SubjectList(APIView):
-#     def get(self,request):
-#         subjects = Subject.objects.all().order_by('id')
-#         serializers = SubjectModelSerializers(subjects,many=True,context = {"request": request})
-#         return Response(serializers.data,status=HTTP_200_OK)
-    
-    
-# class SubjectList(ListAPIView):
-#     queryset = Subject.objects.all()
-#     serializer_class = SubjectModelSerializers
-    
-    
-# class SubjectDetail(APIView):
-#     def get(self,request,pk):
-#         try:
-#             subject = Subject.objects.get(id = pk)
-#             serializer = SubjectModelSerializers(subject)
-#             return Response(serializer.data,status=HTTP_200_OK)
-#         except Subject.DoesNotExist:
-#             subject = None
-#             data = {
-#                 'status':HTTP_404_NOT_FOUND,
-#                 'message':'Subject NOT FOUND'
-#             }
-#             return Response(data)
-        
-        
-# class SubjectCreate(APIView):
-#     def post(self,request):
-#         serializer = SubjectModelSerializers(data = request.data)
-#         if serializer.is_valid():
-#             serializer.save()
-#             return Response(f'{serializer.data['title']} successfully created',status=HTTP_201_CREATED)
-        
-#         return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
     
         
         
